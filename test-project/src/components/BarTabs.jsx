@@ -6,12 +6,13 @@ import { useState, useEffect } from "preact/hooks";
 import { OpenBillsSection } from "./OpenBillsSection.jsx";
 import { CategorySection } from "./CategorySection.jsx";
 import { RecipesSection } from "./RecipesSection.jsx";
+import { ManageRecipesSection } from "./ManageRecipesSection.jsx"; // Ensure this import exists
 
 /**
- * The main component handling the tabbed UI for managing bills.
+ * The main component handling the tabbed UI for managing bills and recipes.
  *
  * Props:
- *  - barData: Object containing alcoholTypes, mixers, garnishes, recipes
+ *  - barData: Object containing alcoholTypes, mixers, garnishes
  */
 export function BarTabs({ barData }) {
   // Initialize bills from localStorage or start with an empty array
@@ -25,6 +26,38 @@ export function BarTabs({ barData }) {
     }
   });
 
+  // Initialize recipes from localStorage or start with default recipes
+  const [recipes, setRecipes] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bartenderRecipes");
+      return saved
+        ? JSON.parse(saved)
+        : {
+            Margarita: {
+              price: 10.0,
+              ingredients: {
+                Tequila: "2 oz",
+                TripleSec: "1 oz",
+                LimeJuice: "1 oz",
+                Salt: "for rimming",
+              },
+            },
+            OldFashioned: {
+              price: 8.5,
+              ingredients: {
+                Bourbon: "2 oz",
+                Sugar: "1 cube",
+                AngosturaBitters: "2 dashes",
+                Water: "dash",
+              },
+            },
+          };
+    } catch (error) {
+      console.error("Failed to load recipes from localStorage:", error);
+      return {};
+    }
+  });
+
   // Persist bills to localStorage whenever they change
   useEffect(() => {
     try {
@@ -33,6 +66,15 @@ export function BarTabs({ barData }) {
       console.error("Failed to save bills to localStorage:", error);
     }
   }, [bills]);
+
+  // Persist recipes to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem("bartenderRecipes", JSON.stringify(recipes));
+    } catch (error) {
+      console.error("Failed to save recipes to localStorage:", error);
+    }
+  }, [recipes]);
 
   // Active tab state
   const [activeTab, setActiveTab] = useState("openBills");
@@ -64,8 +106,8 @@ export function BarTabs({ barData }) {
       navStyle: { backgroundColor: "#4CAF50", color: "#fff" },
     },
     {
-      key: "recipes",
-      label: "Recipes",
+      key: "manageRecipes",
+      label: "Manage Recipes",
       bgClass: "bg-secondary text-white",
       navStyle: { backgroundColor: "#607D8B", color: "#fff" },
     },
@@ -143,6 +185,74 @@ export function BarTabs({ barData }) {
     setBills(updatedBills);
   }
 
+  // Function to add a new recipe
+  function addNewRecipe(recipeName, price) {
+    if (!recipeName.trim()) {
+      alert("Recipe name cannot be empty.");
+      return;
+    }
+    if (recipes.hasOwnProperty(recipeName)) {
+      alert("Recipe already exists.");
+      return;
+    }
+    const newRecipes = {
+      ...recipes,
+      [recipeName.trim()]: {
+        price: parseFloat(price) || 0,
+        ingredients: {}, // Initialize with empty ingredients
+      },
+    };
+    setRecipes(newRecipes);
+    alert(`Added new recipe: ${recipeName}`);
+  }
+
+  // Function to remove an existing recipe
+  function removeRecipe(recipeName) {
+    if (!recipes.hasOwnProperty(recipeName)) {
+      alert("Recipe does not exist.");
+      return;
+    }
+    const { [recipeName]: _, ...remainingRecipes } = recipes;
+    setRecipes(remainingRecipes);
+    alert(`Removed recipe: ${recipeName}`);
+  }
+
+  // Function to update ingredients of a recipe
+  function updateRecipeIngredients(
+    recipeName,
+    ingredientName,
+    ingredientAmount,
+    action
+  ) {
+    if (!recipes.hasOwnProperty(recipeName)) {
+      alert("Recipe does not exist.");
+      return;
+    }
+
+    let updatedRecipes = { ...recipes };
+
+    if (action === "add") {
+      // Add or update ingredient
+      updatedRecipes[recipeName] = {
+        ...updatedRecipes[recipeName],
+        ingredients: {
+          ...updatedRecipes[recipeName].ingredients,
+          [ingredientName]: ingredientAmount,
+        },
+      };
+    } else if (action === "remove") {
+      // Remove ingredient
+      const { [ingredientName]: _, ...remainingIngredients } =
+        updatedRecipes[recipeName].ingredients;
+      updatedRecipes[recipeName] = {
+        ...updatedRecipes[recipeName],
+        ingredients: remainingIngredients,
+      };
+    }
+
+    setRecipes(updatedRecipes);
+  }
+
   // Decide which tab content to render
   function renderActiveTabContent() {
     const tabDef = TABS.find((t) => t.key === activeTab);
@@ -185,12 +295,14 @@ export function BarTabs({ barData }) {
             onAddToBill={onAddToBill}
           />
         );
-      case "recipes":
+      case "manageRecipes":
         return (
-          <RecipesSection
-            recipesObj={barData.recipes}
+          <ManageRecipesSection
+            recipes={recipes}
+            addNewRecipe={addNewRecipe}
+            removeRecipe={removeRecipe}
+            updateRecipeIngredients={updateRecipeIngredients}
             bgClass={tabDef.bgClass}
-            onAddToBill={onAddToBill}
           />
         );
       default:
