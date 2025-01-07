@@ -1,5 +1,5 @@
 {
-  "name": "test-project",
+  "name": "bartending-app",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "bartending-app": "file:",
     "bootstrap": "^5.3.3",
     "preact": "^10.25.3",
     "test-project": "file:"
