@@ -1,10 +1,12 @@
-name: CI
+# .github/workflows/test.yml
+
+name: CI - Run Vitest Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main] # Triggers the workflow on pushes to the main branch
   pull_request:
-    branches: [main]
+    branches: [main] # Triggers the workflow on pull requests targeting the main branch
 
 jobs:
   build-and-test:
@@ -12,13 +14,26 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [16.x, 18.x]
+        node-version: [16.x, 18.x] # Test against multiple Node.js versions
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
-      - run: npm install
-      - run: npm run test -- --coverage
+          cache: "npm" # Caches npm dependencies
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Tests
+        run: npm run test -- --coverage
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/
