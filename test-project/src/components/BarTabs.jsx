@@ -1,21 +1,47 @@
 // src/components/BarTabs.jsx
 import { h } from "preact";
-import { useState } from "preact/hooks";
-import { OpenTabsSection } from "./OpenTabsSection.jsx";
+import { useState, useEffect } from "preact/hooks";
+
+// Import the specialized sections:
+import { OpenBillsSection } from "./OpenBillsSection.jsx";
 import { CategorySection } from "./CategorySection.jsx";
 import { RecipesSection } from "./RecipesSection.jsx";
 
+/**
+ * The main component handling the tabbed UI for managing bills.
+ *
+ * Props:
+ *  - barData: Object containing alcoholTypes, mixers, garnishes, recipes
+ */
 export function BarTabs({ barData }) {
-  // local state for "open tabs"
-  const [tabs, setTabs] = useState([]);
-  // active tab for the nav
-  const [activeTab, setActiveTab] = useState("openTabs");
+  // Initialize bills from localStorage or start with an empty array
+  const [bills, setBills] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bartenderBills");
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error("Failed to load bills from localStorage:", error);
+      return [];
+    }
+  });
 
-  // TABS array for UI
+  // Persist bills to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem("bartenderBills", JSON.stringify(bills));
+    } catch (error) {
+      console.error("Failed to save bills to localStorage:", error);
+    }
+  }, [bills]);
+
+  // Active tab state
+  const [activeTab, setActiveTab] = useState("openBills");
+
+  // Define your tab structure in one place
   const TABS = [
     {
-      key: "openTabs",
-      label: "Open Tabs",
+      key: "openBills",
+      label: "Open Bills",
       bgClass: "bg-light text-dark",
       navStyle: { backgroundColor: "#F44336", color: "#fff" },
     },
@@ -45,112 +71,134 @@ export function BarTabs({ barData }) {
     },
   ];
 
-  // 1) For all sections to add an item directly to a tab, we define:
-  function addDrinkToTab(tabId, name, price) {
-    const updated = tabs.map((t) => {
-      if (t.id === tabId) {
-        return {
-          ...t,
-          drinks: [...t.drinks, { name, price }],
-        };
-      }
-      return t;
-    });
-    setTabs(updated);
-  }
-
-  // We'll pass this to each section: it prompts user to pick a tab, then calls addDrinkToTab
-  function onAddToTab(itemName, defaultPrice = 0) {
-    // Option A: inline prompt (window.prompt) or small custom modal,
-    // or we can do something more advanced. Let's do a quick prompt:
-    if (tabs.length === 0) {
-      alert("No tabs open! Create a tab first in 'Open Tabs'.");
+  // Function to add an item to a bill
+  function onAddToBill(itemName, defaultPrice = 0) {
+    if (bills.length === 0) {
+      alert("No open bills! Create a bill first in 'Open Bills'.");
       return;
     }
-    const tabIdStr = window.prompt(
-      `Which tab number? (existing tabs: ${tabs.map((x) => x.id).join(", ")})`,
-      tabs[0].id // default suggestion
+
+    // Prompt user to select which bill to add to
+    const billIdStr = window.prompt(
+      `Which bill number? (existing bills: ${bills
+        .map((b) => b.id)
+        .join(", ")})`,
+      bills[0].id
     );
-    if (!tabIdStr) return;
-    const tabId = parseInt(tabIdStr);
-    if (isNaN(tabId)) {
-      alert("Invalid tab ID.");
+
+    if (!billIdStr) return;
+
+    const billId = parseInt(billIdStr);
+    if (isNaN(billId)) {
+      alert("Invalid bill ID.");
       return;
     }
 
-    // Optionally let user override the price:
+    // Optionally let user override the price
     const newPriceStr = window.prompt(
       `Price for ${itemName}?`,
       defaultPrice.toFixed(2)
     );
-    if (!newPriceStr) return;
-    const newPrice = parseFloat(newPriceStr) || 0;
 
-    addDrinkToTab(tabId, itemName, newPrice);
-    alert(`Added ${itemName} to Tab #${tabId} at $${newPrice.toFixed(2)}`);
+    if (newPriceStr === null) return; // User cancelled
+
+    const newPrice = parseFloat(newPriceStr);
+    if (isNaN(newPrice)) {
+      alert("Invalid price. Using default price $0.00.");
+    }
+
+    // Add the item to the chosen bill
+    const updatedBills = bills.map((bill) => {
+      if (bill.id === billId) {
+        return {
+          ...bill,
+          drinks: [
+            ...bill.drinks,
+            { name: itemName, price: isNaN(newPrice) ? 0 : newPrice },
+          ],
+        };
+      }
+      return bill;
+    });
+
+    setBills(updatedBills);
+    alert(
+      `Added ${itemName} to Bill #${billId} at $${
+        isNaN(newPrice) ? "0.00" : newPrice.toFixed(2)
+      }`
+    );
   }
 
-  // 2) Render the active tab
+  // Function to remove a drink from a bill
+  function removeDrinkFromBill(billId, drinkIndex) {
+    const updatedBills = bills.map((bill) => {
+      if (bill.id === billId) {
+        const updatedDrinks = bill.drinks.filter(
+          (_, idx) => idx !== drinkIndex
+        );
+        return { ...bill, drinks: updatedDrinks };
+      }
+      return bill;
+    });
+    setBills(updatedBills);
+  }
+
+  // Decide which tab content to render
   function renderActiveTabContent() {
     const tabDef = TABS.find((t) => t.key === activeTab);
     if (!tabDef) return null;
 
     switch (tabDef.key) {
-      case "openTabs":
-        // Show open tabs mgmt
+      case "openBills":
         return (
-          <OpenTabsSection
-            tabs={tabs}
-            setTabs={setTabs}
+          <OpenBillsSection
+            bills={bills}
+            setBills={setBills}
             bgClass={tabDef.bgClass}
+            removeDrinkFromBill={removeDrinkFromBill}
           />
         );
-
       case "alcohol":
         return (
           <CategorySection
             dataObj={barData.alcoholTypes}
             title="Alcohol Types"
             bgClass={tabDef.bgClass}
-            onAddToTab={onAddToTab} // pass callback
+            onAddToBill={onAddToBill}
           />
         );
-
       case "mixers":
         return (
           <CategorySection
             dataObj={barData.mixers}
             title="Mixers"
             bgClass={tabDef.bgClass}
-            onAddToTab={onAddToTab}
+            onAddToBill={onAddToBill}
           />
         );
-
       case "garnishes":
         return (
           <CategorySection
             dataObj={barData.garnishes}
             title="Garnishes"
             bgClass={tabDef.bgClass}
-            onAddToTab={onAddToTab}
+            onAddToBill={onAddToBill}
           />
         );
-
       case "recipes":
         return (
           <RecipesSection
             recipesObj={barData.recipes}
             bgClass={tabDef.bgClass}
-            onAddToTab={onAddToTab}
+            onAddToBill={onAddToBill}
           />
         );
-
       default:
         return <p>Unknown tab.</p>;
     }
   }
 
-  // 3) Tab button style
+  // Style for each tab button
   function getTabButtonStyle(tab) {
     const isActive = activeTab === tab.key;
     return {
@@ -165,8 +213,9 @@ export function BarTabs({ barData }) {
 
   return (
     <div class="container">
-      <h1 class="mb-4">Bartending Tab Manager</h1>
+      <h1 class="mb-4">Bartending Bill Manager</h1>
 
+      {/* Nav bar for tabs */}
       <div style={{ marginBottom: "1rem" }}>
         {TABS.map((tab) => (
           <button

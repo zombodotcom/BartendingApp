@@ -2,25 +2,34 @@
 import { h } from "preact";
 import { CardGrid } from "./CardGrid.jsx";
 
-export function CategorySection({ dataObj, title, bgClass, onAddToTab }) {
-  // define how each item is rendered in the CardGrid
-  const renderItem = (catName, itemsArray) => (
+/**
+ * A reusable section for "category -> string[]" style data (like Alcohol, Mixers, Garnishes).
+ *
+ * Props:
+ *  - dataObj: { [categoryName: string]: string[] }
+ *  - title: string  (heading)
+ *  - bgClass: string (like "bg-info text-white")
+ *  - onAddToBill: Function to add an item to a bill
+ */
+export function CategorySection({ dataObj, title, bgClass, onAddToBill }) {
+  // Define how each item is rendered in the CardGrid
+  const renderItem = (categoryName, itemsArray) => (
     <div class="card h-100">
       <div class="card-body">
-        <h4 class="card-title">{catName}</h4>
+        <h4 class="card-title">{categoryName}</h4>
         <ul class="list-group list-group-flush mt-3">
           {itemsArray.map((item) => (
             <li
-              class="list-group-item d-flex justify-content-between"
+              class="list-group-item d-flex justify-content-between align-items-center"
               key={item}
             >
               <span>{item}</span>
-              {/* "Add to Tab" button */}
+              {/* "Add to Bill" button */}
               <button
                 class="btn btn-sm btn-outline-primary"
-                onClick={() => onAddToTab(item, 0)}
+                onClick={() => onAddToBill(item, 0)} // Assuming default price 0; can be customized
               >
-                Add to Tab
+                Add to Bill
               </button>
             </li>
           ))}
