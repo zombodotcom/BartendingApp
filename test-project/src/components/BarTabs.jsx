@@ -1,21 +1,47 @@
 // src/components/BarTabs.jsx
 import { h } from "preact";
-import { useState } from "preact/hooks";
-import { CardGrid } from "./CardGrid.jsx"; // <-- Our generic grid component
+import { useState, useEffect } from "preact/hooks";
 
+// Import the specialized sections:
+import { OpenBillsSection } from "./OpenBillsSection.jsx";
+import { CategorySection } from "./CategorySection.jsx";
+import { RecipesSection } from "./RecipesSection.jsx";
+
+/**
+ * The main component handling the tabbed UI for managing bills.
+ *
+ * Props:
+ *  - barData: Object containing alcoholTypes, mixers, garnishes, recipes
+ */
 export function BarTabs({ barData }) {
-  // local state for "open tabs" (as an example)
-  const [tabs, setTabs] = useState([]);
+  // Initialize bills from localStorage or start with an empty array
+  const [bills, setBills] = useState(() => {
+    try {
+      const saved = localStorage.getItem("bartenderBills");
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error("Failed to load bills from localStorage:", error);
+      return [];
+    }
+  });
 
-  // which tab is active?
-  const [activeTab, setActiveTab] = useState("openTabs");
+  // Persist bills to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem("bartenderBills", JSON.stringify(bills));
+    } catch (error) {
+      console.error("Failed to save bills to localStorage:", error);
+    }
+  }, [bills]);
 
-  // define your tab structure in one place
-  // Now each tab has a 'navStyle' for the button + 'bgClass' for content area
+  // Active tab state
+  const [activeTab, setActiveTab] = useState("openBills");
+
+  // Define your tab structure in one place
   const TABS = [
     {
-      key: "openTabs",
-      label: "Open Tabs",
+      key: "openBills",
+      label: "Open Bills",
       bgClass: "bg-light text-dark",
       navStyle: { backgroundColor: "#F44336", color: "#fff" },
     },
@@ -45,124 +71,134 @@ export function BarTabs({ barData }) {
     },
   ];
 
-  // Renders the "Open Tabs" section
-  function renderOpenTabsSection(bgClass) {
-    return (
-      <section class={`p-3 mb-5 rounded ${bgClass}`}>
-        <h2 class="mb-3">Open Tabs</h2>
-        {tabs.length === 0 ? (
-          <p>No open tabs yet.</p>
-        ) : (
-          tabs.map((tab) => (
-            <div key={tab.id} class="card mb-3">
-              <div class="card-body">
-                <h3 class="card-title">Tab #{tab.id}</h3>
-                <ul class="list-unstyled">
-                  {tab.drinks.map((drink, idx) => (
-                    <li key={idx}>
-                      {drink.name} - ${drink.price}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          ))
-        )}
-      </section>
+  // Function to add an item to a bill
+  function onAddToBill(itemName, defaultPrice = 0) {
+    if (bills.length === 0) {
+      alert("No open bills! Create a bill first in 'Open Bills'.");
+      return;
+    }
+
+    // Prompt user to select which bill to add to
+    const billIdStr = window.prompt(
+      `Which bill number? (existing bills: ${bills
+        .map((b) => b.id)
+        .join(", ")})`,
+      bills[0].id
+    );
+
+    if (!billIdStr) return;
+
+    const billId = parseInt(billIdStr);
+    if (isNaN(billId)) {
+      alert("Invalid bill ID.");
+      return;
+    }
+
+    // Optionally let user override the price
+    const newPriceStr = window.prompt(
+      `Price for ${itemName}?`,
+      defaultPrice.toFixed(2)
+    );
+
+    if (newPriceStr === null) return; // User cancelled
+
+    const newPrice = parseFloat(newPriceStr);
+    if (isNaN(newPrice)) {
+      alert("Invalid price. Using default price $0.00.");
+    }
+
+    // Add the item to the chosen bill
+    const updatedBills = bills.map((bill) => {
+      if (bill.id === billId) {
+        return {
+          ...bill,
+          drinks: [
+            ...bill.drinks,
+            { name: itemName, price: isNaN(newPrice) ? 0 : newPrice },
+          ],
+        };
+      }
+      return bill;
+    });
+
+    setBills(updatedBills);
+    alert(
+      `Added ${itemName} to Bill #${billId} at $${
+        isNaN(newPrice) ? "0.00" : newPrice.toFixed(2)
+      }`
     );
   }
 
-  // Renders a categories object (like barData.alcoholTypes, mixers, or garnishes)
-  // using our CardGrid
-  function renderCategorySection(dataObj, title, bgClass) {
-    // define how each item looks in the CardGrid
-    const renderItem = (catName, itemsArray) => (
-      <div class="card h-100">
-        <div class="card-body">
-          <h4 class="card-title">{catName}</h4>
-          <ul class="list-group list-group-flush mt-3">
-            {itemsArray.map((item) => (
-              <li class="list-group-item" key={item}>
-                {item}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    );
-
-    return (
-      <section class={`p-3 mb-5 rounded ${bgClass}`}>
-        <h2 class="mb-3">{title}</h2>
-        <CardGrid data={dataObj} renderItem={renderItem} />
-      </section>
-    );
+  // Function to remove a drink from a bill
+  function removeDrinkFromBill(billId, drinkIndex) {
+    const updatedBills = bills.map((bill) => {
+      if (bill.id === billId) {
+        const updatedDrinks = bill.drinks.filter(
+          (_, idx) => idx !== drinkIndex
+        );
+        return { ...bill, drinks: updatedDrinks };
+      }
+      return bill;
+    });
+    setBills(updatedBills);
   }
 
-  // Renders the recipes using CardGrid
-  function renderRecipesSection(recipesObj, bgClass) {
-    const renderRecipeCard = (recipeName, recipeData) => (
-      <div class="card h-100">
-        <div class="card-body">
-          <h4 class="card-title">{recipeName}</h4>
-          <ul class="list-group list-group-flush mt-3 mb-2">
-            {Object.entries(recipeData.ingredients).map(([ing, amt]) => (
-              <li class="list-group-item" key={ing}>
-                <strong>{ing}</strong>: {amt}
-              </li>
-            ))}
-          </ul>
-          <p>
-            <strong>Price:</strong> ${recipeData.price.toFixed(2)}
-          </p>
-        </div>
-      </div>
-    );
-
-    return (
-      <section class={`p-3 mb-5 rounded ${bgClass}`}>
-        <h2 class="mb-3">Recipes</h2>
-        <CardGrid data={recipesObj} renderItem={renderRecipeCard} />
-      </section>
-    );
-  }
-
-  // Chooses what content to render based on activeTab
+  // Decide which tab content to render
   function renderActiveTabContent() {
     const tabDef = TABS.find((t) => t.key === activeTab);
     if (!tabDef) return null;
 
     switch (tabDef.key) {
-      case "openTabs":
-        return renderOpenTabsSection(tabDef.bgClass);
-
+      case "openBills":
+        return (
+          <OpenBillsSection
+            bills={bills}
+            setBills={setBills}
+            bgClass={tabDef.bgClass}
+            removeDrinkFromBill={removeDrinkFromBill}
+          />
+        );
       case "alcohol":
-        return renderCategorySection(
-          barData.alcoholTypes,
-          "Alcohol Types",
-          tabDef.bgClass
+        return (
+          <CategorySection
+            dataObj={barData.alcoholTypes}
+            title="Alcohol Types"
+            bgClass={tabDef.bgClass}
+            onAddToBill={onAddToBill}
+          />
         );
-
       case "mixers":
-        return renderCategorySection(barData.mixers, "Mixers", tabDef.bgClass);
-
-      case "garnishes":
-        return renderCategorySection(
-          barData.garnishes,
-          "Garnishes",
-          tabDef.bgClass
+        return (
+          <CategorySection
+            dataObj={barData.mixers}
+            title="Mixers"
+            bgClass={tabDef.bgClass}
+            onAddToBill={onAddToBill}
+          />
         );
-
+      case "garnishes":
+        return (
+          <CategorySection
+            dataObj={barData.garnishes}
+            title="Garnishes"
+            bgClass={tabDef.bgClass}
+            onAddToBill={onAddToBill}
+          />
+        );
       case "recipes":
-        return renderRecipesSection(barData.recipes, tabDef.bgClass);
-
+        return (
+          <RecipesSection
+            recipesObj={barData.recipes}
+            bgClass={tabDef.bgClass}
+            onAddToBill={onAddToBill}
+          />
+        );
       default:
         return <p>Unknown tab.</p>;
     }
   }
 
-  // We define a small helper to style each button
-  // If it's the active tab, we can highlight it with a border, etc.
+  // Style for each tab button
   function getTabButtonStyle(tab) {
     const isActive = activeTab === tab.key;
     return {
@@ -177,9 +213,9 @@ export function BarTabs({ barData }) {
 
   return (
     <div class="container">
-      <h1 class="mb-4">Bartending Tab Manager</h1>
+      <h1 class="mb-4">Bartending Bill Manager</h1>
 
-      {/* NAV TABS - loop over TABS array, but use inline styles for each button */}
+      {/* Nav bar for tabs */}
       <div style={{ marginBottom: "1rem" }}>
         {TABS.map((tab) => (
           <button
@@ -192,7 +228,7 @@ export function BarTabs({ barData }) {
         ))}
       </div>
 
-      {/* TAB CONTENT */}
+      {/* Tab content */}
       {renderActiveTabContent()}
     </div>
   );

@@ -1,3 +1,15 @@
+// src/components/CardGrid.jsx
+import { h } from "preact";
+
+/**
+ * Generic grid of cards for an object whose shape is:
+ *   { keyName: value }
+ *
+ * Props:
+ *  - data: Record<string, any>  (like { Whiskey: [...], Vodka: [...], ... })
+ *  - renderItem: (key: string, value: any) => JSX.Element
+ *  - columns?: string  (default "col-md-4 col-sm-6 mb-4")
+ */
 export function CardGrid({
   data,
   renderItem,
@@ -13,4 +25,3 @@ export function CardGrid({
     </div>
   );
 }
-``;
