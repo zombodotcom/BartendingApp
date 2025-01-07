@@ -165,7 +165,7 @@ export function OpenBillsSection({
                   />
                 </div>
                 <div class="col-md-2">
-                  <label class="form-label">Price:</label>
+                  <label class="form-label">Price ($)</label>
                   <input
                     type="number"
                     step="0.01"
