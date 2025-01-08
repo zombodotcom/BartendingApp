@@ -74,11 +74,11 @@ export function App() {
 
   return (
     <ToastContext.Provider value={{ showToast }}>
-      <div class="d-flex flex-column vh-100">
+      <div class="flex flex-col h-screen">
         {/* A dark Bootstrap navbar */}
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
           <div class="container-fluid">
-            <span class="navbar-brand">Bartending Tab App</span>
+            <span class="navbar-brand">Bartending POS App</span>
             <div>
               <button
                 class="btn btn-outline-light me-2"
@@ -105,8 +105,10 @@ export function App() {
         </nav>
 
         {/* Main content area: fill the rest of the page */}
-        <div class="container-fluid flex-grow-1 overflow-auto p-3">
-          {activeTab === "view" && barData && <BarTabs barData={barData} />}
+        <div class="flex-grow p-4 overflow-auto">
+          {activeTab === "view" && barData && (
+            <BarTabs barData={barData} setBarData={setBarData} />
+          )}
           {activeTab === "edit" && barData && (
             <ManageData barData={barData} setBarData={setBarData} />
           )}
